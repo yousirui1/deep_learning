@@ -5,6 +5,7 @@ from model.crnn import CRNN
 import utils.params as yamnet_params
 from tensorflow.keras.utils import to_categorical
 from model.mobilenet_v3 import MobileNetV3
+from model.crnn_attention import CRNN_Attention
 
 
 print("===============  GPU is ",tf.test.is_gpu_available(), "TF version", tf.__version__, "==================")
@@ -29,8 +30,14 @@ def mobilenet_v3_test():
 
 def crnn_test():
     params = yamnet_params.Params(num_classes = 12)
+
+    model = CRNN_Attention((params.patch_frames, params.patch_bands), params.num_classes)
     #model = CRNN(n_class).build(params)
-    #model.summary()
+    model.summary()
+
+    model.callbacks(filename = "./out/mobilenet.h5", patience = 1, monitor = "val_accuracy")
+    model.compile_(opt = 'adam')
+    model.train(x_train, y_train, x_test, y_test)
 
     #loss = 'categorical_crossentropy';    
     #optimizer = keras.optimizers.SGD(lr=self.opt.lr, decay=self.opt.weight_decay, momentum=self.opt.momentum, nesterov=True)
@@ -43,7 +50,8 @@ def crnn_test():
     #            epochs = 30)
 
 if __name__ == "__main__":
-    mobilenet_v3_test()
+    #mobilenet_v3_test()
+    crnn_test()
    # crnn_test()
 
 
