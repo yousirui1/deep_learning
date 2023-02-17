@@ -185,36 +185,101 @@ class LoadAudioSet():
     def __len__(self):
         return self.cache.size()
 
+
 class DataGenerator(Sequence):
-    def __init__(self, dataset, batch_size=1, dim = (96, 64), shuffle=True):
-        self.dataset = dataset
+    def __init__(self, cache_dir, batch_size = 1, dim = (96, 64), classes = 527, shuffle=True):
+        self.cache_dir = cache_dir
+        self.batch_size = batch_size
+        self.dim = dim 
+        self.shuffle = shuffle
+        self.classes = classes
+        self.load_dataset()
+        self.dataset_size = len([_ for _ in iter(self.dataset)])
+        self.on_epoch_end()
+
+    def _parse_audio_function(self, example_string):
+        feature = { 
+            'patches': tf.io.FixedLenFeature([], tf.string),
+            'patches_shape': tf.io.FixedLenFeature(shape=(3,), dtype=tf.int64), # shape = 3 
+            'label': tf.io.FixedLenFeature([self.classes], dtype=tf.int64), 
+        }   
+        feature_dict = tf.io.parse_single_example(example_string, feature)
+        patches_raw = feature_dict['patches']   
+        patches_shape = feature_dict['patches_shape']
+        label = feature_dict['label']
+
+        patches = tf.io.decode_raw(patches_raw, tf.float32)
+        patches = tf.reshape(patches, patches_shape)
+        #print(patches_shape)
+        label = tf.reshape(label, (1, self.classes)) 
+        return patches, label
+
+    def load_dataset(self):      
+        dataset = tf.data.TFRecordDataset(self.cache_dir)
+        dataset = dataset.map(self._parse_audio_function)
+        self.dataset = dataset.shuffle(buffer_size = 100) # 在缓冲区中随机打乱数据
+
+    def __len__(self):
+        return int(self.dataset_size/self.batch_size)
+
+    def __getitem__(self, index):
+        batched_train_iter = tf.compat.v1.data.make_one_shot_iterator(self.dataset)
+        next_batch = batched_train_iter.get_next()
+        return next_batch[0], next_batch[1]
+      
+
+    def on_epoch_end(self):
+        if self.shuffle == True:
+            self.dataset = self.dataset.shuffle(buffer_size = 100) # 在缓冲区中随机打乱数据
+
+class DataGenerator1(Sequence):
+    def __init__(self, cache_dir, batch_size = 1, dim = (96, 64), classes = 527, shuffle=True):
+        self.cache_dir = cache_dir
         self.batch_size = batch_size
         self.dim = dim
         self.shuffle = shuffle
+        self.classes = classes
+        self.load_dataset()
         self.on_epoch_end()
+        self.dataset_size = len([_ for _ in iter(self.dataset)])
 
-    #def __len__(self):
-    #    return int(np.floor(self.dataset.__len__) / self.batch_size)
+    def _parse_audio_function(self, example_string):
+        feature = { 
+            'patches': tf.io.FixedLenFeature([], tf.string),
+            'patches_shape': tf.io.FixedLenFeature(shape=(3,), dtype=tf.int64), # shape = 3 
+            'label': tf.io.FixedLenFeature([self.classes], dtype=tf.int64), # shape = 3 
+        }
+        feature_dict = tf.io.parse_single_example(example_string, feature)
+        patches_raw = feature_dict['patches']	
+        patches_shape = feature_dict['patches_shape']
+        label = feature_dict['label']
 
-    #def __getitem(self, index):
-    #    index[;]
+        patches = tf.io.decode_raw(patches_raw, tf.float32)
+        patches = tf.reshape(patches, patches_shape)
 
-    #    if self.class_weights:
-    #        return
-    #    else:
-    #        x,y = self.__data_generation()
-    #        return x, y
+        label = tf.reshape(label, (1, self.classes)) 
+        return patches, label
 
-    #def __data_generation(self, list_id_temp):
-    #    print('');
+    def load_dataset(self):
+        dataset = tf.data.TFRecordDataset(self.cache_dir)
+        dataset = dataset.map(self._parse_audio_function)
+        dataset = dataset.batch(batch_size = 1) # 每10条数据为一个batch，生成一个新的Dataset
+        self.dataset = dataset
+
+    def __len__(self):
+        return int(self.dataset_size/self.batch_size)
+
+    def __getitem__(self, index):
+        batched_iter = tf.compat.v1.data.make_one_shot_iterator(self.dataset)
+        next_iter = batched_iter.get_next()
+        return next_iter[0], next_iter[1]           # parse (tensor array) labels
 
     def on_epoch_end(self):
-        self.indexes = np.arange(self.dataset.__len__())
         if self.shuffle == True:
-            np.random.shuffle(self.indexes)
+            self.dataset = self.dataset.shuffle(buffer_size = 100) # 在缓冲区中随机打乱数据
 
-
-
-
-
+audioset = DataGenerator("/home/ysr/dataset/audio/AudioSet/valid_bak.cache")
+print(len(audioset))
+print(audioset.__getitem__(1)[0])
+print(audioset.__getitem__(1)[1])
 

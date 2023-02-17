@@ -6,6 +6,7 @@ import utils.params as yamnet_params
 from tensorflow.keras.utils import to_categorical
 from model.mobilenet_v3 import MobileNetV3
 from model.crnn_attention import CRNN_Attention
+from sklearn.preprocessing import MultiLabelBinarizer
 
 
 print("===============  GPU is ",tf.test.is_gpu_available(), "TF version", tf.__version__, "==================")
@@ -16,8 +17,27 @@ y_train = np.random.randint(12, size=(1000, 1))
 y_train = to_categorical(y_train)
 x_test = np.random.random((100, 96, 64))
 y_test = np.random.randint(12, size=(100, 1)) 
-y_test = to_categorical(y_test)
+y_test = to_categorical(y_test)  # one hot 
 
+# tf.v1 tensor -> numpy
+data_tensor = tf.convert_to_tensor(data_numpy)
+
+with tf.Session() as sess:
+    data_numpy = data_tensor.eval()
+
+# tf.v2 tensor -> numpy
+data_tensor= tf.convert_to_tensor(data_numpy)
+# eagertensor 
+tf.compat.v1.enable_eager_execution()
+data_numpy = data_tensor.numpy()
+
+# numpy -> tensor array
+tf.constant(data_numpy)
+
+#  multi label one hot
+classes = ['a', 'b']
+mlb = MultiLabelBinarizer(classes = classes)
+train_labels = mlb.fit_transform(train_labels)
 
 def mobilenet_v3_test():
     params = yamnet_params.Params(num_classes = 12)
