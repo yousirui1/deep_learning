@@ -186,13 +186,14 @@ class LoadAudioSet():
         return self.cache.size()
 
 class DataGenerator(Sequence):
-    def __init__(self, cache_dir, batch_size = 1, dim = (96, 64), n_classes = 527, shuffle=True):
+    def __init__(self, cache_dir, batch_size = 1, train_split = 1, dim = (96, 64), n_classes = 527, shuffle=True):
         self.cache_dir = cache_dir
         self.batch_size = batch_size
         self.dim = dim 
         self.shuffle = shuffle
         self.n_classes = n_classes
         self.load_dataset()
+        self.train_split = train_split
         self.dataset_size = len([_ for _ in iter(self.dataset)])
         self.on_epoch_end()
 
@@ -219,7 +220,7 @@ class DataGenerator(Sequence):
         self.dataset = dataset.shuffle(buffer_size = 100) # 在缓冲区中随机打乱数据
 
     def __len__(self):
-        return int(self.dataset_size/self.batch_size)
+        return int(self.dataset_size * self.train_split /self.batch_size)
 
     def __getitem__(self, index):
         batched_train_iter = tf.compat.v1.data.make_one_shot_iterator(self.dataset)
