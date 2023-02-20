@@ -32,7 +32,7 @@ def MoblieNetV3_model(params):
     return model
 
 class MobileNetV3_Small(MobileNetBase):
-    def __init__(self, shape, n_class, alpha=1.0, include_top=False):
+    def __init__(self, shape, n_class, alpha=1.0, include_top=True):
         """Init.
 
         # Arguments
@@ -82,24 +82,24 @@ class MobileNetV3_Small(MobileNetBase):
         x = self._bottleneck(x, 96, (5, 5), e=576, s=1, squeeze=True, nl='HS')
         x = self._bottleneck(x, 96, (5, 5), e=576, s=1, squeeze=True, nl='HS')
 
-        #x = self._conv_block(x, 576, (1, 1), strides=(1, 1), nl='HS')
-        x = self._conv_block(x, 1280, (1, 1), strides=(1, 1), nl='HS')
+        x = self._conv_block(x, 576, (1, 1), strides=(1, 1), nl='HS')
+        #x = self._conv_block(x, 1280, (1, 1), strides=(1, 1), nl='HS')
         x = GlobalAveragePooling2D()(x)
-        #x = Reshape((1, 1, 576))(x)
+        x = Reshape((1, 1, 576))(x)
 
         #x = Conv2D(1280, (1, 1), padding='same')(x)
-        #x = self._return_activation(x, 'HS')
+        x = Conv2D(1280, (1, 1), padding='same')(x)
+        x = self._return_activation(x, 'HS')
 
         if self.include_top:
-            x = Conv2D(self.n_class, (1, 1), padding='same', activation='sigmoid')(x)
+            x = Conv2D(self.n_class, (1, 1), padding='same', activation='softmax')(x)
             x = Reshape((self.n_class,))(x)
-
         
         #model = Model(features, x)
         #x = Conv2D(self.n_class, (1, 1), padding='same')(x)
-        x = Dense(units=self.n_class, use_bias=True)(x)
-        x = Activation('sigmoid')(x) #sigmoid
- 
+        #x = Dense(units=self.n_class, use_bias=True)(x)
+        #x = Activation('sigmoid')(x) #sigmoid
+        #x = Activation('sigmoid')(x) #sigmoid
 
         #if plot:
        #     plot_model(model, to_file='images/MobileNetv3_small.png', show_shapes=True)
