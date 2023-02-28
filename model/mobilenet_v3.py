@@ -319,7 +319,10 @@ def MobileNetV3(stack_fn,
                           padding='same',
                           name='Logits')(x)
         x = layers.Flatten()(x)
-        x = layers.Softmax(name='Predictions/Softmax')(x)
+        #x = layers.Softmax(name='Predictions/Softmax')(x)
+        #x = layers.Sigmod(name='Predictions/Sigmod')(x)
+        #x = activations.sigmoid()(x)
+        x = layers.Activation('sigmoid')(x)
     else:
         if pooling == 'avg':
             x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
