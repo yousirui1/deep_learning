@@ -31,7 +31,6 @@ WEIGHTS_HASHES = {
 def relu(x):
     return layers.ReLU()(x)
 
-
 def hard_sigmoid(x):
     return layers.ReLU(6.)(x + 3.) * (1. / 6.)
 
