@@ -92,7 +92,7 @@ class MobileNetV3_Small(MobileNetBase):
         x = self._return_activation(x, 'HS')
 
         if self.include_top:
-            x = Conv2D(self.n_class, (1, 1), padding='same', activation='sigmoid')(x)
+            x = Conv2D(self.n_class, (1, 1), padding='same', activation='softmax')(x)
             x = Reshape((self.n_class,))(x)
         
         #model = Model(features, x)

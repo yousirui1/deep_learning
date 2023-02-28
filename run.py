@@ -4,7 +4,8 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 import argparse
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau,EarlyStopping
-from model.mobilenet_v3_small import MobileNetV3_Small, MoblieNetV3_model
+#from model.mobilenet_v3_small import MobileNetV3_Small, MoblieNetV3_model
+from model.mobilenet_v3 import MobileNetV3Small
 from utils.datasets import DataGenerator, get_files_and_labels, DataGenerator_NP
 import utils.params as yamnet_params
 
@@ -16,7 +17,7 @@ print("TF version:{}".format(tf.__version__))
 
 
 def train_np(opt):
-    train_dir = '/home/ysr/dataset/audio/train_set_patches/'
+    train_dir = '/home/ysr/project/ai/yamnet-transfer-learning/train_set_patches/'
     model_out = './saved_models/model'
     model_last_out = './saved_models/last'
     batch_size = 1
@@ -54,7 +55,8 @@ def train_np(opt):
     earlystop = EarlyStopping(monitor='val_accuracy', patience=5, verbose=0, mode='auto')
 
     params = yamnet_params.Params()
-    model = MobileNetV3_Small((params.patch_frames, params.mel_bands), 527).model(params)
+    #model = MobileNetV3_Small((params.patch_frames, params.mel_bands), 527).model(params)
+    model = MobileNetV3Small(input_shape=(params.patch_frames, params.mel_bands), weights = None, classes=12)
     model.summary()
 
     if opt.weights and os.path.exists(opt.weights):
@@ -64,8 +66,9 @@ def train_np(opt):
         #o = tf.keras.layers.Conv2D(len(labels), (1, 1), padding='same', activation='softmax')(model.layers[-6].output)
         #o = tf.keras.layers.Reshape((len(labels),))(o)
         #tf.keras.layers.Dense
-        o = tf.keras.layers.Dense(units=len(labels), use_bias=True)(model.layers[-6].output)
-        o = tf.keras.layers.Activation('softmax')(o) #sigmoid
+        #o = tf.keras.layers.Reshape((len(labels)))(model.layers[-2].output)
+        o = tf.keras.layers.Conv2D(12, (1, 1), padding='same', activation='softmax')(model.layers[-3].output)
+        o = tf.keras.layers.Reshape((12,))(o)
 
         model = Model(inputs=model.input, outputs=[o])
         model.summary()
@@ -90,7 +93,7 @@ def train_np(opt):
     #optimizer = tf.keras.optimizers.Adam(lr=0.001) #0.001
     optimizer = tf.keras.optimizers.SGD() #0.001
     #categorical_crossentropy binary_crossentropy
-    model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])   #categorical_accuracy 
+    model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])   #categorical_accuracy 
     model_history = model.fit(train_generator,
                             steps_per_epoch = len(train_generator),
                             batch_size = batch_size,
@@ -98,8 +101,9 @@ def train_np(opt):
                             validation_data = valid_generator,
                             validation_steps = len(valid_generator), #validation_generator
                             verbose = 1,
-                            #callbacks=[earlystop,checkpoint,reducelr])
                             callbacks=[checkpoint])
+                            #callbacks=[earlystop,checkpoint,reducelr])
+                            #callbacks=[checkpoint])
 
     model.save(model_last_out+'.h5')
 
@@ -162,6 +166,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='', help='initial weights path')
     opt = parser.parse_args()
-    train(None, opt)
-    #train_np(opt)
+    #train(None, opt)
+    train_np(opt)
 
