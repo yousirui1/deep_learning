@@ -193,7 +193,7 @@ class DataGenerator(Sequence):
         label = feature_dict['label']
 
         patches = tf.io.decode_raw(patches_raw, tf.float32)
-        patches = tf.reshape(patches, patches_shape, 1)
+        patches = tf.reshape(patches, patches_shape)
         #print(patches_shape)
         label = tf.reshape(label, (1, self.n_classes)) 
         return patches, label
