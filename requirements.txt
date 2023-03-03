@@ -4,3 +4,5 @@ soundfile
 resampy
 tqdm
 scikit-learn
+pandas==1.4.2
+

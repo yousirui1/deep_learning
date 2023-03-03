@@ -20,7 +20,7 @@ import csv
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model, layers
-import features as features_lib
+#import features as features_lib
 
 
 def _batch_norm(name, params):
@@ -101,12 +101,7 @@ def yamnet(features, params):
   embeddings = layers.GlobalAveragePooling2D()(net)
   logits = layers.Dense(units=params.num_classes, use_bias=True)(embeddings)
   predictions = layers.Activation(activation=params.classifier_activation)(logits)
-  if params.tflite_ouput == 2:
-    logits_1 = layers.Dense(units=521, use_bias=True)(embeddings)
-    predictions_1 = layers.Activation(activation='sigmoid')(logits_1)
-    return predictions, predictions_1, embeddings
-  else:
-    return predictions, embeddings
+  return predictions, embeddings
 
 # Jack LeBien edit 2020
 def yamnet_model(params):

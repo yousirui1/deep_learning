@@ -50,5 +50,3 @@ class Params:
 
   tflite_compatible: bool = False
 
-  tflite_ouput: int = 1
-
