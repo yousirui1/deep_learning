@@ -34,6 +34,7 @@ def build_mode(opt, n_classes):
 
     elif opt.model_name == 'mobilenet_v3':
         if opt.weights and os.path.exists(opt.weights):
+            print(opt.weights)
             mobilenet_v3 = tf.keras.models.load_model(opt.weights)
             o = Dense(units=n_classes, use_bias=True)(mobilenet_v3.layers[-2].output)
             o = Activation('softmax')(o) 
@@ -54,8 +55,7 @@ def build_dataset(opt):
             labels = json.loads(json_data)
             n_classes = len(labels)
 
-    train_generator = DataGenerator(opt.valid_cache_dir, opt.batch_size, n_classes = n_classes)
-    # to do
+    train_generator = DataGenerator(opt.train_cache_dir, opt.batch_size, n_classes = n_classes, buffer_size=1200)  # to do 
     valid_generator = DataGenerator(opt.valid_cache_dir, opt.batch_size, n_classes = n_classes)
 
     return train_generator, valid_generator, labels, n_classes
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     parser.add_argument('--weights', type=str, default='', help='initial weights path')
     parser.add_argument('--epochs', type=int, default=5, help='epochs defulat: 5')
     parser.add_argument('--batch_size', type=int, default=1, help='batch_size default: 1')
-    parser.add_argument('--model_name', type=str, default='yamnet', help='use model name')
+    parser.add_argument('--model_name', type=str, default='mobilenet_v3', help='use model name')
     parser.add_argument('--dataset_name', type=str, default='mine', help='use dataset name')
     parser.add_argument('--path', type=str, default='/home/ysr/dataset/audio/', help='dataset path')
     parser.add_argument('--model_out', type=str, default='saved_models/', help='dataset path')

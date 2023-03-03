@@ -26,10 +26,10 @@ class DataGenerator(Sequence):
         self.dim = dim 
         self.shuffle = shuffle
         self.n_classes = n_classes
-        self.buffer_size = buffer_size
         self.load_dataset()
         self.train_split = train_split
         self.dataset_size = len([_ for _ in iter(self.dataset)])
+        self.buffer_size = buffer_size
         self.on_epoch_end()
 
     def _parse_audio_function(self, example_string):
@@ -50,9 +50,7 @@ class DataGenerator(Sequence):
 
     def load_dataset(self, is_audio = True):      
         dataset = tf.data.TFRecordDataset(self.cache_dir)
-        #if is_audio:
-        dataset = dataset.map(self._parse_audio_function)
-        self.dataset = dataset.shuffle(buffer_size = self.buffer_size) # 在缓冲区中随机打乱数据
+        self.dataset = dataset.map(self._parse_audio_function)
 
     def __len__(self):
         return int(self.dataset_size * self.train_split /self.batch_size)
@@ -63,5 +61,6 @@ class DataGenerator(Sequence):
         return next_batch[0], next_batch[1]
 
     def on_epoch_end(self):
+        print('on_epch_end')
         if self.shuffle == True:
             self.dataset = self.dataset.shuffle(buffer_size = self.buffer_size) # 在缓冲区中随机打乱数据
