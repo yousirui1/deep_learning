@@ -22,17 +22,22 @@ x_test = np.random.random((100, 96, 64))
 y_test = np.random.randint(12, size=(100, 1)) 
 y_test = to_categorical(y_test)  # one hot 
 
-# tf.v1 tensor -> numpy
-#data_tensor = tf.convert_to_tensor(data_numpy)
+# tf.v1 numpy -> tensor
+def tf_v1_numpy_to_tensor(data_numpy):
+    data_tensor = tf.convert_to_tensor(data_numpy)
 
-#with tf.Session() as sess:
-#    data_numpy = data_tensor.eval()
+def tf_v1_tensor_to_numpy(data_tensor):
+    with tf.Session() as sess:
+    data_numpy = data_tensor.eval()
+
+def tf_v2_numpy_to_tensor(data_numpy):
+    data_tensor= tf.convert_to_tensor(data_numpy)
 
 # tf.v2 tensor -> numpy
-#data_tensor= tf.convert_to_tensor(data_numpy)
-# eagertensor 
-#tf.compat.v1.enable_eager_execution()
-#data_numpy = data_tensor.numpy()
+def tf_v2_tensor_to_numpy(data_tensor):
+    # eagertensor 
+    tf.compat.v1.enable_eager_execution()
+    data_numpy = data_tensor.numpy()
 
 # numpy -> tensor array
 #tf.constant(data_numpy)

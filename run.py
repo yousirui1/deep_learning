@@ -32,15 +32,21 @@ def build_mode(opt, n_classes):
         else:
             model = yamnet
 
-    elif opt.model_name == 'mobilenet_v3':
+    elif opt.model_name == 'mobilenet_v3_tf':
         if opt.weights and os.path.exists(opt.weights):
             print(opt.weights)
             mobilenet_v3 = tf.keras.models.load_model(opt.weights)
+            for layer in mobilenet_v3.layers:
+                layer.trainable = False
             o = Dense(units=n_classes, use_bias=True)(mobilenet_v3.layers[-2].output)
             o = Activation('softmax')(o) 
             model = Model(inputs=mobilenet_v3.input, outputs=o)
         else:
             model = MobileNetV3Small(input_shape=(params.patch_frames, params.mel_bands), weights = None, classes=n_classes)
+    elif opt.model_name == 'mobilenet_v3':
+        model = MobileNetV3Small(input_shape=(params.patch_frames, params.mel_bands), weights = None, classes=n_classes)
+    else
+    i   return None
 
     return model
 
@@ -55,7 +61,7 @@ def build_dataset(opt):
             labels = json.loads(json_data)
             n_classes = len(labels)
 
-    train_generator = DataGenerator(opt.train_cache_dir, opt.batch_size, n_classes = n_classes, buffer_size=1200)  # to do 
+    train_generator = DataGenerator(opt.train_cache_dir, opt.batch_size, n_classes = n_classes)
     valid_generator = DataGenerator(opt.valid_cache_dir, opt.batch_size, n_classes = n_classes)
 
     return train_generator, valid_generator, labels, n_classes
@@ -66,10 +72,10 @@ def train(opt, model, train_generator, validation_data = None):
 
     # Define training callbacks
     checkpoint = ModelCheckpoint(opt.model_out + opt.model_name + '.h5',
-              monitor='val_loss', 
-              verbose=1,
-              save_best_only=True, 
-              mode='auto')
+                    monitor='val_loss', 
+                    verbose=1,
+                    save_best_only=True, 
+                    mode='auto')
 
     reducelr = ReduceLROnPlateau(monitor='val_loss', 
                 factor=0.5, 
@@ -104,6 +110,7 @@ def train(opt, model, train_generator, validation_data = None):
                             callbacks=[earlystop,checkpoint,reducelr])
 
     model.save(opt.model_out + opt.model_name + '_last.h5')
+
 
 
 if __name__ == '__main__':
