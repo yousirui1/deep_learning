@@ -15,9 +15,8 @@ sys.path.append('.')
 from random import shuffle
 #import features.audio_features as features_lib
 import feature.audio_features as features_lib
-from params import Params
 import utils.tools as tools
-#import utils.params as ynet_params
+from utils.params import Params
 
 BACKGROUND_NOISE_DIR_NAME = '_background_noise_'
 SILENCE_LABEL = '_Silence_'
@@ -193,6 +192,7 @@ class MineDataSet():
 
     def __build_cache(self, file_list, labels, cache_path, params):
         total_size = len(file_list)
+        print(len(labels))
         y = np.zeros((total_size, len(labels)), dtype=np.int64)   # batch_size
         with tf.io.TFRecordWriter(cache_path) as writer:
             for index, audio_file in enumerate(file_list):
@@ -207,7 +207,7 @@ class MineDataSet():
         #print('Saved model architecture')
 	
     def build_dataset(self):
-        files_train, files_valid, labels = get_files_and_labels(self.path + 'trian_wav/', self.file_type, self.train_split, self.wanted_label)
+        files_train, files_valid, labels = get_files_and_labels(self.path + 'train_wav/', self.file_type, self.train_split, self.wanted_label)
         self.__build_cache(files_train, labels, self.cache_dir + 'train.cache', self.params)
         self.__build_cache(files_valid, labels, self.cache_dir + 'valid.cache', self.params)
         self.__save_labels(self.path, labels)
@@ -224,6 +224,16 @@ if __name__ == '__main__':
     opt = parser.parse_args()
     param = Params()
 
+    opt.wanted_label = 'Alarm,ChainSaw,Cough,Cry,Explosion,GlassBreak,' \
+                        'Knock,Laughter,Music,Scream,Siren119,Siren120,Voice'
+
+    if opt.dataset == 'mine':
+        opt.path = '/home/ysr/dataset/audio/mine/'
+        #opt,cache_dir = '/home/ysr/dataset/audio/mine/'
+    elif opt.dataset == 'audioset':
+        opt.path = '/home/ysr/dataset/audio/audioset/'
+        #opt.cache_dir = '/home/ysr/dataset/audio/audioset/'
+
     dataset = None
 
     if opt.dataset == 'mine':
@@ -234,6 +244,5 @@ if __name__ == '__main__':
         print('esc 50')
 
     dataset.build_dataset()
-
 
 
