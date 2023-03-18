@@ -1,5 +1,7 @@
 import tensorflow as tf
 import numpy as np
+import os
+from random import shuffle
 
 def _bytes_feature(value):
     # Returns a byte_list from a string /byte 
@@ -44,4 +46,38 @@ def _int64_list_feature(value):
 def _shape_feature(value):
     # Returns a int64_list from a bool / enum / int /uint 
     return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
+
+
+def get_files_and_labels(train_dir, file_type = 'wav', train_split = 1, wanted_label = None, single_cls = True):
+    files_train = list()
+    files_val = list()
+    labels = dict()
+
+    if single_cls :
+        if not wanted_label:
+            classes = sorted(os.listdir(train_dir))
+        else :
+            classes = [SILENCE_LABEL, UNKNOWN_WORD_LABEL] + wanted_label.split(',') 
+ 
+        for cnt, i in enumerate(classes): # loop over classes
+            tmp = os.listdir(train_dir + i)
+            shuffle(tmp)
+            for j in tmp[:round(len(tmp)*train_split)]: # loop over training samples
+                if j.split('.')[-1] == file_type:
+                    files_train.append(train_dir + i +'/' + j)
+            for j in tmp[round(len(tmp)*train_split):]: # loop over validation samples
+                if j.split('.')[-1] == file_type:
+                    files_val.append(train_dir + i +'/' + j)
+            labels[i] = cnt 
+    else:
+        tmp = os.listdir(train_dir)
+        shuffle(tmp)
+        for j in tmp[:round(len(tmp)*train_split)]: # loop over training samples
+            if j.split('.')[-1] == file_type:
+                files_train.append(train_dir  +'/' + j)
+        for j in tmp[round(len(tmp)*train_split):]: # loop over validation samples
+            if j.split('.')[-1] == file_type:
+                files_val.append(train_dir  +'/' + j)
+
+    return files_train, files_val, labels
 

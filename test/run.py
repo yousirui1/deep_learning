@@ -9,6 +9,22 @@
     #model = Model(inputs=model.input, outputs=[o])
 
 
+def build_dataset(opt):
+    labels = None
+    print(opt.label_json)
+    if opt.label_json and os.path.exists(opt.label_json):
+        with open(opt.label_json) as f:
+            json_data = f.read()
+            labels = json.loads(json_data)
+            n_classes = len(labels)
+
+    train_generator = DataGenerator(opt.train_cache_dir, opt.batch_size, n_classes = opt.n_classes)
+    valid_generator = DataGenerator(opt.valid_cache_dir, opt.batch_size, n_classes = opt.n_classes)
+
+
+    return train_generator, valid_generator, labels, opt.n_classes
+
+
 def train_np(opt):
     train_dir = '/home/ysr/project/ai/yamnet-transfer-learning/train_set_patches/'
     model_out = './saved_models/model'

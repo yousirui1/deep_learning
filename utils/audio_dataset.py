@@ -1,6 +1,7 @@
 import os
 import json
 import numpy as np
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 import tensorflow as tf
 import soundfile as sf
 import resampy
@@ -52,56 +53,6 @@ def log_mel_spectrogram(audio_file, param):
     waveform = np.reshape(waveform, [1, -1]).astype(np.float32)
     return features_lib.waveform_to_log_mel_spectrogram_patches(tf.squeeze(waveform, axis=0), param)
 
-def get_files_and_labels(train_dir, file_type = 'wav', train_split = 0.9, wanted_label = None):
-    #ignored = {"folder_one", "folder_two", "folder_three"}
-    #folders = [x for x in os.listdir(path) if x not in ignored]
-    
-    if not wanted_label:
-        classes = sorted(os.listdir(train_dir))
-    else :
-        classes = [SILENCE_LABEL, UNKNOWN_WORD_LABEL] + wanted_label.split(',') 
-    files_train = list()
-    files_val = list()
-    labels = dict()
- 
-    for cnt, i in enumerate(classes): # loop over classes
-        tmp = os.listdir(train_dir + i)
-        shuffle(tmp)
-        for j in tmp[:round(len(tmp)*train_split)]: # loop over training samples
-            if j.split('.')[-1] == file_type:
-                files_train.append(train_dir + i +'/' + j)
-        for j in tmp[round(len(tmp)*train_split):]: # loop over validation samples
-            if j.split('.')[-1] == file_type:
-                files_val.append(train_dir + i +'/' + j)
-        labels[i] = cnt
-    return files_train, files_val, labels
-
-
-def _parse_audio_function(example_string):
-    n_classes = 527
-    feature = { 
-        'patches': tf.io.FixedLenFeature([], tf.string),
-        'patches_shape': tf.io.FixedLenFeature(shape=(3,), dtype=tf.int64), # shape = 3 
-        'label': tf.io.FixedLenFeature([n_classes], dtype=tf.int64), 
-    }       
-    feature_dict = tf.io.parse_single_example(example_string, feature)
-    patches_raw = feature_dict['patches']   
-    patches_shape = feature_dict['patches_shape']
-    label = feature_dict['label']
-
-    patches = tf.io.decode_raw(patches_raw, tf.float32)
-    patches = tf.reshape(patches, patches_shape)
-    label = tf.reshape(label, (1, n_classes)) 
-    return patches, label
-
-
-def audio_example(patches, label): # tf record example
-    feature = { 
-        'patches': tools._numpy_float32_feature(patches),
-        'patches_shape': tools._shape_feature(patches.shape),
-        'label': tools._int64_list_feature(label),
-    }   
-    return tf.train.Example(features=tf.train.Features(feature=feature)) 
 
 class ESC50DataSet():
     def __init__(self):
@@ -109,6 +60,7 @@ class ESC50DataSet():
 
     def build_dataset():
         print('')
+
 
 class AudioSetDataSet():
     def __init__(self, params, path, cache_dir = None):
@@ -124,7 +76,7 @@ class AudioSetDataSet():
         class_meta = pd.read_csv(path + 'class_labels_indices.csv')
         class_id = class_meta.groupby('index')['index'].apply(lambda cat: cat.sample(1)).reset_index()['index']
         return valid_meta, valid_id, train_meta, train_id, class_meta, class_id
-        
+
     def __build_classes(self, class_meta, class_id):
         labels = []
         label_index = {}
@@ -138,36 +90,43 @@ class AudioSetDataSet():
 
         mlb = MultiLabelBinarizer()
         mlb.fit(labels)
-        print(labels)
+        #print(labels)
         return label_index, mlb, mlb.classes_
 
-    def __build_cache(self, wav_dir, cache_path, file_ytid, meta,  mlb, label_index, params):
+    def __build_cache(self, wav_dir, npy_dir, file_ytid, meta,  mlb, label_index, params):
         total_size = len(file_ytid)
-        with tf.io.TFRecordWriter(cache_path) as writer:
-            for index in range(total_size):
-                label_id = []
-                item = file_ytid[index]
-                item = meta[meta.YTID == item]
-                
-                multi_label = item.positive_labels.to_string(index=False).split(",")
-                for label in multi_label:
-                    label_id.append(label_index[label])
+        
+        if os.path.exists(npy_dir + 'label/') == False:
+            os.makedirs(npy_dir + 'label/')
+        if os.path.exists(npy_dir + 'patches/') == False:
+            os.makedirs(npy_dir + 'patches/')
+            
+        for index, item in enumerate(file_ytid):
+            label_id = []
+            item = meta[meta.YTID == item]
 
-                wav_path = wav_dir + item.YTID.to_string(index=False) + '.wav'
-                spectrogram, patches = log_mel_spectrogram(wav_path, params)
-                example = audio_example(patches.numpy(), mlb.transform([label_id])[0])
-                writer.write(example.SerializeToString())
-                d = f"Scanning '{wav_path}' audio and labels... {total_size} found, {index} corrupted"
-                tqdm(None, desc=d, total=total_size, initial=index)  # display cache results
+            multi_label = item.positive_labels.to_string(index=False).split(",")
+            for label in multi_label:
+                label_id.append(label_index[label])
 
-            writer.close()
-	
+            wav_path = wav_dir + item.YTID.to_string(index=False) + '.wav'
+    
+            spectrogram, patches = log_mel_spectrogram(wav_path, params)
+            
+            np.save(npy_dir + 'label/' +  item.YTID.to_string(index=False) + '.npy', mlb.transform([label_id])[0])
+            np.save(npy_dir + 'patches/' +  item.YTID.to_string(index=False) + '.npy', patches)
+            
+            d = f"Scanning '{wav_path}' audio and labels... {total_size} found, {index} corrupted"
+            tqdm(None, desc=d, total=total_size, initial=index)  # display cache results
+            
+            
     def build_dataset(self):
         valid_meta, valid_id, train_meta, train_id, class_meta, class_id = self.__read_pd(self.path)
-        label_index, mlb, classes = self.__build_classes(class_meta, class_id)
-        self.__build_cache(self.path + 'train_wav/', self.path + 'train.cache', train_id, train_meta, mlb, 
+        label_index, mlb, n_classes = self.__build_classes(class_meta, class_id)
+
+        self.__build_cache(self.path + 'train_wav/', self.path + 'train_npy/', train_id, train_meta, mlb,
                                     label_index, self.params)
-        self.__build_cache(self.path + 'valid_wav/', self.path + 'valid.cache', valid_id, valid_meta, mlb, 
+        self.__build_cache(self.path + 'valid_wav/', self.path + 'valid_npy/', valid_id, valid_meta, mlb,
                                     label_index, self.params)
 
 '''
@@ -215,7 +174,7 @@ class MineDataSet():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='mine', help='audio dataset name default mine')
+    parser.add_argument('--dataset', type=str, default='audioset', help='audio dataset name default mine')
     parser.add_argument('--path', type=str, default='', help='audio dataset name default mine')
     parser.add_argument('--cache_dir', type=str, default=None, help='audio dataset name default mine')
     parser.add_argument('--file_type', type=str, default='wav', help='audio dataset name default mine')
@@ -229,10 +188,8 @@ if __name__ == '__main__':
 
     if opt.dataset == 'mine':
         opt.path = '/home/ysr/dataset/audio/mine/'
-        #opt,cache_dir = '/home/ysr/dataset/audio/mine/'
     elif opt.dataset == 'audioset':
         opt.path = '/home/ysr/dataset/audio/audioset/'
-        #opt.cache_dir = '/home/ysr/dataset/audio/audioset/'
 
     dataset = None
 
