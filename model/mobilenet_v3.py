@@ -318,8 +318,8 @@ def MobileNetV3(stack_fn,
                           padding='same',
                           name='Logits')(x)
         x = layers.Flatten()(x)
-        x = layers.Softmax(name='Predictions/Softmax')(x)
-        #x = layers.Sigmod(name='Predictions/Sigmod')(x)
+        x = layers.Sigmod(name='Predictions/Sigmod')(x)
+        #x = layers.Softmax(name='Predictions/Softmax')(x)
         #x = activations.sigmoid()(x)
         #x = layers.Activation('sigmoid')(x)
     else:
