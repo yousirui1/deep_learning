@@ -51,7 +51,7 @@ def build_mode(opt):
     elif opt.model_name == 'mobilenet_v3':
         if opt.weights and os.path.exists(opt.weights):
             mobilenet_v3 = MobileNetV3Small(input_shape=(params.patch_frames, params.mel_bands), weights = None, classes=527)
-            mobilenet_v3.summary()        
+            #mobilenet_v3.summary()        
             mobilenet_v3.load_weights(opt.weights)
             for layer in mobilenet_v3.layers:
                 layer.trainable = False
@@ -84,7 +84,7 @@ def build_mode(opt):
 
 
 def build_dataset(opt):
-    files_train, files_val, labels = get_files_and_labels(opt.path + "train_npy/patches/", file_type = 'npy', train_split=1.0,
+    files_train, files_val, labels = get_files_and_labels(opt.path + "train_npy/", file_type = 'npy', train_split=1.0,
                                 single_cls= opt.single_cls)
 
     train_generator = DataGenerator(files_train,
@@ -97,7 +97,7 @@ def build_dataset(opt):
                                     batch_size= opt.batch_size,
                                     n_classes = len(labels))
 
-    n_classes = 527
+    n_classes = len(labels)
     return train_generator, valid_generator, labels, n_classes
 
 
@@ -125,8 +125,8 @@ def train(opt, model, train_generator, validation_data = None):
     #categorical_crossentropy binary_crossentropy
 
     if opt.pre_train :
-        print('pre train loss=binary_crossentropy')
-        model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])   #categorical_accuracy 
+        print(' --------------  pre train loss=binary_crossentropy ---------------')
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])   #categorical_accuracy 
         model_history = model.fit(train_generator,
                             steps_per_epoch = len(train_generator),
                             batch_size = opt.batch_size,
@@ -157,8 +157,8 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=5, help='epochs defulat: 5')
     parser.add_argument('--batch_size', type=int, default=1, help='batch_size default: 1')
     parser.add_argument('--model_name', type=str, default='mobilenet_v3', help='use model name')
-    parser.add_argument('--dataset_name', type=str, default='audioset', help='use dataset name')
-    parser.add_argument('--path', type=str, default='/home/ysr/dataset/audio/audioset/', help='dataset path')
+    parser.add_argument('--dataset_name', type=str, default='esc-50', help='use dataset name')
+    parser.add_argument('--path', type=str, default='', help='dataset path')
     parser.add_argument('--model_out', type=str, default='saved_models/', help='dataset path')
     parser.add_argument('--single-cls', action='store_false', help='train multi-class data as single-class')
     opt = parser.parse_args()
@@ -168,8 +168,9 @@ if __name__ == '__main__':
 
     opt.pre_train = True
     opt.label_json = None
-    opt.n_classes = 527
     opt.wanted_label = ''
+
+    opt.path = '/home/ysr/dataset/audio/' + opt.dataset_name + '/'
 
 
     #if opt.dataset_name == 'mine':
@@ -183,6 +184,7 @@ if __name__ == '__main__':
     
     #train_generator, valid_generator, labels, n_classes = build_dataset_np(opt)
     train_generator, valid_generator, labels, n_classes = build_dataset(opt)
+    opt.n_classes = n_classes
 
     model = build_mode(opt)
     model.summary()

@@ -66,18 +66,34 @@ class DataGenerator(Sequence):
 
     def __data_generation(self, list_IDs_temp):
         'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
-        # Initialization   
-        x = []
-        y = []
-        
-        for i, ID in enumerate(list_IDs_temp):
-            label_id = ID.replace('patches', 'label')
-            patches = np.load(ID)
-            label = np.load(label_id)
-            x.append(patches)
-            y.append(label)
 
-        return tf.cast(x[0], dtype=tf.float32), tf.cast(y, dtype=tf.int32)
+        # Initialization   
+        if self.single_cls:
+            x = []
+            y = np.empty((self.batch_size, self.n_classes))
+
+            y[:] = 0
+            for i, ID in enumerate(list_IDs_temp):
+                class_id = ID.split('/')[-2]
+                y[i,self.labels[class_id]] = 1
+                patches = np.load(ID)
+                x.append(patches)
+
+            return tf.cast(x[0], dtype=tf.float32), tf.cast(y, dtype=tf.int32)
+
+        else:
+            x = []
+            y = []
+        
+            for i, ID in enumerate(list_IDs_temp):
+                label_id = ID.replace('patches', 'label')
+                patches = np.load(ID)
+                label = np.load(label_id)
+                x.append(patches)
+                y.append(label)
+
+            return tf.cast(x[0], dtype=tf.float32), tf.cast(y, dtype=tf.int32)
+
 
 class DataGenerator_1(Sequence):
     

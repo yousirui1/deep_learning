@@ -55,11 +55,43 @@ def log_mel_spectrogram(audio_file, param):
 
 
 class ESC50DataSet():
-    def __init__(self):
-        print('')
+    def __init__(self, params, path, cache_dir = None):
+        self.params = params
+        self.path = path
+        self.cache_dir = cache_dir
 
-    def build_dataset():
+    def __read_pd(self, path):
+        meta = pd.read_csv(path +'meta/esc50.csv')
+        recordings = meta.groupby('filename')['filename'].apply(lambda cat: cat.sample(1)).reset_index()['filename']
+        return meta, recordings
+
+    def __build_classes(self, class_meta, class_id):
         print('')
+        #return label_index, mlb, mlb.classes_
+
+    def __build_cache(self, wav_dir, npy_dir, meta, recordings, params):
+        total_size = len(recordings)
+        for index in range(len(recordings)):
+            recording = recordings[index]
+            recording = meta[meta.filename == recording]
+            path = 'train_npy/' + recording.category.to_string(index=False).replace(" ", "") +'/'
+            if os.path.exists(self.path + path) == False:
+                os.makedirs(self.path + path)
+            wav_file = self.path + "audio/" + recording.filename.to_string(index=False).replace(" ", "") 
+            out_file = self.path + path + '16kHz_1ch_' + str(index) + ".npy"
+
+            spectrogram, patches = log_mel_spectrogram(wav_file, params)
+            
+            np.save(out_file, patches)
+
+            d = f"Scanning '{wav_file}' audio and labels... {total_size} found, {index} corrupted"
+            tqdm(None, desc=d, total=total_size, initial=index)  # display cache results
+            
+    
+    def build_dataset(self):
+        meta, recordings = self.__read_pd(self.path)
+        #label_index, mlb, n_classes = self.__build_classes(class_meta, class_id)
+        self.__build_cache(self.path + 'train_wav/', self.path + 'train_npy/', meta, recordings, self.params)
 
 
 class AudioSetDataSet():
@@ -174,7 +206,7 @@ class MineDataSet():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='audioset', help='audio dataset name default mine')
+    parser.add_argument('--dataset', type=str, default='esc-50', help='audio dataset name default mine')
     parser.add_argument('--path', type=str, default='', help='audio dataset name default mine')
     parser.add_argument('--cache_dir', type=str, default=None, help='audio dataset name default mine')
     parser.add_argument('--file_type', type=str, default='wav', help='audio dataset name default mine')
@@ -186,10 +218,12 @@ if __name__ == '__main__':
     opt.wanted_label = 'Alarm,ChainSaw,Cough,Cry,Explosion,GlassBreak,' \
                         'Knock,Laughter,Music,Scream,Siren119,Siren120,Voice'
 
-    if opt.dataset == 'mine':
-        opt.path = '/home/ysr/dataset/audio/mine/'
-    elif opt.dataset == 'audioset':
-        opt.path = '/home/ysr/dataset/audio/audioset/'
+    #if opt.dataset == 'mine':
+        #opt.path = '/home/ysr/dataset/audio/mine/'
+    #elif opt.dataset == 'audioset':
+        #opt.path = '/home/ysr/dataset/audio/audioset/'
+    #elif opt.dataset == 'esc-50':
+    opt.path = '/home/ysr/dataset/audio/' + opt.dataset + '/'
 
     dataset = None
 
@@ -197,8 +231,11 @@ if __name__ == '__main__':
         dataset = MineDataSet(param, opt.path, opt.cache_dir, opt.file_type, opt.train_split, opt.wanted_label)
     elif opt.dataset == 'audioset':
         dataset = AudioSetDataSet(param, opt.path, opt.cache_dir)
-    elif opt.dataset == 'esc50':
-        print('esc 50')
+    elif opt.dataset == 'esc-50':
+        dataset = ESC50DataSet(param, opt.path, opt.cache_dir)
+        print('esc-50 ')
+    else:
+        print('')
 
     dataset.build_dataset()
 
