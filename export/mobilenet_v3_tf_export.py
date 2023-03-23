@@ -50,7 +50,7 @@ def frames_model(params, model):
 class MobileNetv3(tf.Module):
     def __init__(self, embeddings, params):
         self._model = frames_model(params, embeddings)
-        self._class_map_asset = tf.saved_model.Asset('yamnet_class_map.csv')
+        self._class_map_asset = tf.saved_model.Asset('export/yamnet_class_map.csv')
         self.params = params
     @tf.function(input_signature=[])
     def class_map_path(self):
@@ -118,7 +118,7 @@ def make_tflite_export(weights_path, export_dir, n_class):
 
 output_dir = '/home/ysr/project/ai/deep_learning/saved_models'
 tflite_export_dir = os.path.join(output_dir, 'tflite')
-make_tflite_export('/home/ysr/project/ai/deep_learning/saved_models/mobilenet_v3_tf.h5', tflite_export_dir, 18)
+make_tflite_export('/home/ysr/project/ai/deep_learning/saved_models/mobilenet_v3_tf.h5', tflite_export_dir, 21)
 
 #frames_model(params, embeddings)
 

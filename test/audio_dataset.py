@@ -1,3 +1,63 @@
+def log_mel_spectrogram(audio_file, param):
+    wav_data, sr = sf.read(audio_file, dtype=np.int16)
+    assert wav_data.dtype == np.int16, 'Bad sample type: %r' % wav_data.dtype
+
+    # 补0 to do  mask
+    if len(wav_data) < param.sample_rate:
+        wav_data = np.pad(wav_data, (0, int(param.sample_rate - len(wav_data))), 'constant', constant_values = 0)
+
+    waveform = wav_data / 32768.0
+
+    if len(waveform.shape) > 1:
+            waveform = np.mean(waveform, axis=1)  # 多通道转单通道
+
+    if sr != param.sample_rate:
+            waveform = resampy.resample(waveform, sr, param.sample_rate)
+
+    waveform = np.reshape(waveform, [1, -1]).astype(np.float32)
+    return features_lib.waveform_to_log_mel_spectrogram_patches(tf.squeeze(waveform, axis=0), param)
+
+
+class MineDataSet():
+    def __init__(self, params, path, cache_dir = None, file_type='wav', train_split = 0.9, wanted_label = None):
+        self.params = params
+        self.path = path
+        if cache_dir is None:
+            self.cache_dir = path
+        else:
+            self.cache_dir = cache_dir
+        self.file_type = file_type
+        self.train_split = train_split
+        self.wanted_label = wanted_label
+
+    def __save_labels(self, path, labels):
+        with open(path + 'mine_classes.json', 'w') as f:
+            json.dump(labels, f)
+        print('Saved model architecture')
+
+    def __build_cache(self, file_list, labels, cache_path, params):
+        total_size = len(file_list)
+        print(len(labels))
+        y = np.zeros((total_size, len(labels)), dtype=np.int64)   # batch_size
+        with tf.io.TFRecordWriter(cache_path) as writer:
+            for index, audio_file in enumerate(file_list):
+                class_id = audio_file.split('/')[-2]
+                spectrogram, patches = log_mel_spectrogram(audio_file, params)
+                y[index, [labels[class_id]]] = 1 
+                example = audio_example(patches.numpy(), y[index])
+                writer.write(example.SerializeToString())
+                d = f"Scanning '{audio_file}' audio and labels... {total_size} found, {index} corrupted"
+                tqdm(None, desc=d, total=total_size, initial=index)  # display cache results
+            writer.close()
+        #print('Saved model architecture')
+            
+    def build_dataset(self):
+        files_train, files_valid, labels = get_files_and_labels(self.path + 'train_wav/', self.file_type, self.train_split, self.wanted_label)
+        self.__build_cache(files_train, labels, self.cache_dir + 'train.cache', self.params)
+        self.__build_cache(files_valid, labels, self.cache_dir + 'valid.cache', self.params)
+        self.__save_labels(self.path, labels)
+
+
 
 def _parse_audio_function(example_string):
     n_classes = 527 
