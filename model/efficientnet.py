@@ -444,6 +444,7 @@ def EfficientNet(
           **args)
       b += 1
 
+
   # Build top
   x = layers.Conv2D(
       round_filters(1280),
