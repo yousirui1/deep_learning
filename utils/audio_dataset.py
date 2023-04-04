@@ -51,7 +51,7 @@ def read_audio_file(file_path, file_type = 'wav', sample_rate = 16000):
 
     # 取单通道
     if len(waveform.shape) > 1:
-        waveform = np.mean(waveform, axis=1)
+        waveform = np.mean(waveform, axis=1)  # 多通道取均值，变单通道
 
     # 归一化
     waveform = np.reshape(waveform, [1, -1]).astype(np.float32)

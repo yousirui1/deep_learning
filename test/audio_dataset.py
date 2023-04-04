@@ -1,3 +1,157 @@
+import librosa
+import numpy as np
+import pandas as pd
+from glob import glob
+
+
+import dask
+from dask import delayed
+from dask.distributed import Client
+
+
+from pickle import dump, load
+from sklearn import preprocessing
+from sklearn.decomposition import PCA
+
+class Features:
+    def __init__(self, 
+                metadata_path= "",
+                audio_file_path = "",
+                save_path = "",
+                save_name = "",
+                folds = [1,2,3,4,5,6],
+                workers = 4):
+        self.workers = workers
+
+    def get_features(self, audio_file):
+        """
+        Extract features from an audio file
+
+        Args:
+            audio_file(str):path to the audio file
+
+        Returns:
+            Numpy array:extracted features
+        """
+        def array_map(array):
+            return [
+                    np.min(array),
+                    np.max(array),
+                    np.media(array),
+                    np.mean(array),
+                    np.std(array)
+                ]
+        y, sr = librosa.load(audio_file, sr = None)
+        mfcc = librosa.feature.mfcc(y, sr)
+        chroma_stft = librosa.feature.chroma_stft(y, sr)
+        rms = librosa.feature.rms(y, sr)
+        zero = librosa.feature.zero_crossing_rate(y)
+        S, phase = librosa.magphase(librosa.stft(y))
+        rolloff = librosa.feature.spectral_rolloff(S=S, sr=sr)
+        onset_env = librosa.onset_onset_strength(y=y, sr=sr)
+        total = np.concatenate((mfcc, chroma_stft, rms, zero, rolloff, np.array([onset_env])), axis=0)
+        return np.apply_along_axis(array_map, 1, total).flatten()
+
+
+    def get_dataframe(self):
+        data = pd.read_csv(self.metadata_path)
+        training_data = data[data["fold"].isin(self.folds)]
+        values = training_data[["slice_file_name", "fold", "classID"]].values
+
+        @delayed
+        def m(x):
+            audio_path = f"{self.audio_files_path}/fold{x[1]}/{x[0]}"
+            return np.insert(self.get_features(audio_path), 0, int(x[2]))
+
+        Client(n_workers = self.workers)
+
+        feature_arrays = []
+        for e in values:
+            r = m(e)
+            feature_arrays.append(r)
+
+        feature_arrays = dask.compute(*feature_arrays)
+
+        columns = ["class"] + [f"f_{i}" for i in range(len(feature_arrays[0]) -1 )]
+        return pd.DataFrame(feature_arrays, columns = columns)
+
+    def scale_dataframe(self, 
+                        dataframe,
+                        save_path = "",
+                        save_scaler=False):
+        x = dataframe.drop("class", axis = 1)
+        scaler_df = pd.DataFrame(data=scaled_x, columns = dataframe.columns[1:])
+        scaled_df.insert(0, "class", dataframe["class"])
+
+        if save_scaler:
+            dump(scaler, open(save_path, "wb"))
+        return scaled_df
+
+    def apply_scaling(self, dataframe, scaler_load_path):
+        """
+
+        """
+        scaler = load(open(scaler_load_path, "rb"))
+        x = dataframe.drop("class", axis=1)
+        scaled_x = scaler.transform(x)
+        scaled_df = pd.DataFrame(data=scaled_x, columns=dataframe.columns[1:])
+        scaled_df.insert(0, "class", dataframe["class"])
+        return scaled_df
+        
+    def select_features(self, 
+                        dataframe,
+                        n=0.95,
+                        save_path="",
+                        save_pca = False):
+        """
+        Scale dataframe by fitting a PCA
+        """
+        pca = PCA(n_components=n, svd_solver="full")
+        x = dataframe.drop("class", axis=1)
+        reduced_x = pca.fit_transform(x)
+        reduced_df = pd.DataFrame(data=reduced_x, columns = dataframe.columns[1:pca.n_components+1])
+        reduced_df.insert(0, "class", dataframe["class"])
+
+        if save_pca:
+            dump(pca, open(save_path, "wb"))
+
+        return reduced_df
+
+
+
+
+
+
+
+
+def test_feautre_1(filename):
+    y, sr = librosa.load(filename)
+def test_feature():
+    try:
+        y, sr = librosa.load()
+    except:
+        raise IOError('')
+
+    if len(y.shape) > 1:
+        y = librosa.to_mono(y)
+
+    if sr != sample_rate:
+        y = librosa.resample(y, sr, sample_rate)
+
+    mel_feat = librosa.feature.melspectrogram(y = y, sr = sample_rate, n_fft = n_fft, hop_length = hop_length, n_mel = 128)
+    inpt = librosa.power_to_db(mel_feat).T
+    
+
+
+def matrix_feature(filename):
+    y.sr = librosa.load(filename)
+    mfcc = np.mean(librosa.feature.mfcc(y, sr, n_mfcc=40).T, axis=0)
+    mel_spectrogram = np.mean(librosa.feature_melspectrogram(y=y, sr=sr, n_mels=40, fmax=8000).T, axis=0)
+    chroma_stft = np.mean(librosa.feature.chroma_stft(y=y, sr=sr, n_chroma=40).T, axis=0)
+    features = np.reshape(np.vstack((mfcc, mel_spectrogram, chroma_stft)), (40, 3))
+    return features
+
+
 def log_mel_spectrogram(audio_file, param):
     wav_data, sr = sf.read(audio_file, dtype=np.int16)
     assert wav_data.dtype == np.int16, 'Bad sample type: %r' % wav_data.dtype

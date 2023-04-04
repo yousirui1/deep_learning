@@ -115,5 +115,3 @@ def read_audio_file(file_path, file_type = 'wav', sample_rate = 16000):
 
     return waveform
 
-    
-

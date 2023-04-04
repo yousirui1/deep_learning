@@ -8,7 +8,6 @@ import soundfile as sf
 import numpy as np
 
 
-
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
 WEIGHTS = ROOT / 'weights'
@@ -100,7 +99,6 @@ def detect(source='0'):
     # Run Detect
     #for 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument('--weights', nargs='+', type=str, default='yolov7.pt', help='model.pt path(s)' )
@@ -109,6 +107,3 @@ if __name__ == '__main__':
     print(opt)
 
     detect(**vars(opt)) #**vars(opt) 返回对象object的属性和属性值的字典对象
-
-
-

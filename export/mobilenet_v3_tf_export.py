@@ -118,7 +118,7 @@ def make_tflite_export(weights_path, export_dir, n_class):
 
 output_dir = '/home/ysr/project/ai/deep_learning/saved_models'
 tflite_export_dir = os.path.join(output_dir, 'tflite')
-make_tflite_export('/home/ysr/project/ai/deep_learning/saved_models/mobilenet_v3_tf.h5', tflite_export_dir, 21)
+make_tflite_export('/home/ysr/project/ai/deep_learning/saved_models/mobilenet_v3_tf.h5', tflite_export_dir, 13)
 
 #frames_model(params, embeddings)
 

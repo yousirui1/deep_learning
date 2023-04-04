@@ -40,10 +40,12 @@ def build_mode(opt):
     elif opt.model_name == 'mobilenet_v3_tf':
         if opt.weights and os.path.exists(opt.weights):
             mobilenet_v3 = tf.keras.models.load_model(opt.weights)
-            #mobilenet_v3.summary()
+            mobilenet_v3.summary()
             for layer in mobilenet_v3.layers:
                 layer.trainable = False
-            o = Dense(units=n_classes, use_bias=True)(mobilenet_v3.layers[-1].output)
+            o = keras.layers.Dropout(0.1)(mobilenet_v3.layers[-2].output)
+            #o = keras.layers.Dropout(0.1)(mobilenet_v3.layers[-4].output)
+            o = Dense(units=n_classes, use_bias=True)(o)
             o = Activation('softmax')(o) 
             model = Model(inputs=mobilenet_v3.input, outputs=o)
             #mobilenet_v3.summary()
@@ -172,8 +174,8 @@ def train(opt, model, train_generator, validation_data = None):
                             validation_steps = len(valid_generator), #validation_generator
                             verbose = 1,
                             #callbacks=[earlystop,checkpoint,reducelr])
-                            #callbacks=[checkpoint, reducelr])
-                            callbacks=[checkpoint])
+                            callbacks=[checkpoint, reducelr])
+                            #callbacks=[checkpoint])
 
     model.save(opt.model_out + opt.model_name + '_last.h5')
 
@@ -183,24 +185,31 @@ if __name__ == '__main__':
     parser.add_argument('--weights', type=str, default='', help='initial weights path')
     parser.add_argument('--epochs', type=int, default=5, help='epochs defulat: 5')
     parser.add_argument('--batch_size', type=int, default=1, help='batch_size default: 1')
-    parser.add_argument('--model_name', type=str, default='efficientnet', help='use model name')
+    parser.add_argument('--model_name', type=str, default='mobilenet_v3_tf', help='use model name')
     parser.add_argument('--dataset_name', type=str, default='mine', help='use dataset name')
     parser.add_argument('--path', type=str, default='', help='dataset path')
     parser.add_argument('--model_out', type=str, default='saved_models/', help='dataset path')
     parser.add_argument('--single-cls', action='store_false', help='train multi-class data as single-class')
+    parser.add_argument('--freqm', help='frequency mask max length', type=int, default=0)
+    parser.add_argument('--timem', help='time mask max length', type=int, default=0)
+    parser.add_argument('--mixup', type=float, default=0, help="how many (0-1) samples need to be mixup during training")
+    parser.add_argument("--att_head", type=int, default=4, help="number of attention heads")
+    parser.add_argument('--bal', help='if use balance sampling', type=bool, default=False)
+
     opt = parser.parse_args()
 
     opt.pre_train = True
     opt.label_json = None
     opt.wanted_label = 'Alarm,ChainSaw,Cough,Cry,Explosion,GlassBreak,' \
                         'Knock,Scream,Siren119,Voice,' \
-                        'Applause,BellRinging,CarHorn,CashCounter,' \
-                        'ChurchBell,Jackhammer,Laughter,Music,Siren120'
+                        #'Applause,BellRinging,CarHorn,CashCounter,' \
+                        #'ChurchBell,Jackhammer,Laughter,Music,Siren120'
 
     opt.path = '/home/ysr/dataset/audio/' + opt.dataset_name + '/'
 
     if opt.dataset_name == 'mine':
         opt.pre_train = False
+        #opt.path = '/home/ysr/dataset/audio/' + opt.dataset_name + '/'
         #opt.label_json = opt.path + opt.dataset_name + '/' + 'classes.json'
         #opt.path = '/home/ysr/project/ai/yamnet-transfer-learning/'
     

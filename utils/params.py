@@ -26,7 +26,7 @@ class Params:
   sample_rate: float = 16000.0
   stft_window_seconds: float = 0.025
   stft_hop_seconds: float = 0.010
-  mel_bands: int = 64
+  mel_bands: int = 128
   mel_min_hz: float = 125.0
   mel_max_hz: float = 7500.0
   log_offset: float = 0.001
