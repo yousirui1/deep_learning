@@ -37,25 +37,27 @@ pd.set_option('display.max_columns',None)
 pd.set_option('max_colwidth',1000)
 
 
-def read_audio_file(file_path, file_type = 'wav', sample_rate = 16000):
-    wav_data, sr = sf.read(file_path, dtype=np.int16) 
+def read_audio_file(audio_file, file_type = 'wav', sample_rate = 16000):
+    wav_data, sr = sf.read(audio_file, dtype=np.int16)
     assert wav_data.dtype == np.int16, 'Bad sample type: %r' % wav_data.dtype
-    # int16 -> float
+
+    # 补0 to do  mask
+    if len(wav_data) < sample_rate:
+        wav_data = np.pad(wav_data, (0, int(sample_rate - len(wav_data))), 'constant', constant_values = 0)
+
     waveform = wav_data / 32768.0
 
-    if sr != sample_rate:
-        waveform = resampy.resample(waveform, sr, sample_rate) 
-
-    if len(waveform) < sample_rate:   # 1s
-        waveform = np.pad(waveform, (0, sample_rate - len(waveform)), 'constant', constant_values = 0)
-
-    # 取单通道
     if len(waveform.shape) > 1:
+<<<<<<< HEAD
         waveform = np.mean(waveform, axis=1)  # 多通道取均值，变单通道
+=======
+        waveform = np.mean(waveform, axis=1)  # 多通道转单通道
+>>>>>>> 3ce25689a18cb748fb13a406b43933c8afd3f064
 
-    # 归一化
+    if sr != sample_rate:
+        waveform = resampy.resample(waveform, sr, sample_rate)
+
     waveform = np.reshape(waveform, [1, -1]).astype(np.float32)
-
     return waveform
 
 
@@ -63,6 +65,7 @@ def read_audio_file(file_path, file_type = 'wav', sample_rate = 16000):
 def log_mel_spectrogram(audio_file, param):
     waveform = read_audio_file(audio_file, sample_rate = param.sample_rate)
     return features_lib.waveform_to_log_mel_spectrogram_patches(tf.squeeze(waveform, axis=0), param)
+
 
 
 class ESC50DataSet():
@@ -103,6 +106,42 @@ class ESC50DataSet():
         meta, recordings = self.__read_pd(self.path)
         #label_index, mlb, n_classes = self.__build_classes(class_meta, class_id)
         self.__build_cache(self.path + 'train_wav/', self.path + 'train_npy/', meta, recordings, self.params)
+
+
+class UrbanDataSet():
+    def __init__(self, params, path, cache_dir=None, file_type ='wav'):
+        self.params = params
+        self.path = path
+        if cache_dir is None:
+            self.cache_dir = path
+        else:
+            self.cache_dir = cache_dir
+        self.file_type = file_type
+
+    def __save_labels(self, path, labels):
+        with open(path + 'mine_classes.json', 'w') as f:
+            json.dump(labels, f)
+
+    def __build_cache(self, wav_dir, npy_dir):
+        total_size = sum([len(files) for root,dirs,files in os.walk(wav_dir)])
+        index = 0
+        for cls in os.listdir(wav_dir):
+            if os.path.exists(npy_dir + cls) == False:
+                os.makedirs(npy_dir + cls)
+            for smp in os.listdir(wav_dir + cls):
+                # log_mel_spectrogram()
+                #datum = read_audio_file(wav_dir + cls + '/' + smp)    
+                wav_path = wav_dir + cls + '/' + smp
+                spectrogram, patches = log_mel_spectrogram(wav_path, self.params)
+                #print(patches)
+                d = f"Scanning '{cls + '/' + smp}' audio and labels... {total_size} found, {index} corrupted"
+                tqdm(None, desc=d, total=total_size, initial=index)  # display cache results
+                index += 1 
+                np.save(npy_dir + cls+'/'+ smp+'.npy', patches)
+
+    def build_dataset(self):
+        self.__build_cache(self.path + 'train_wav/', self.path + 'train_npy/')
+
 
 
 class AudioSetDataSet():
@@ -197,14 +236,16 @@ class MineDataSet():
         self.backgroud_data = []
         for item in os.listdir(wav_dir + '_background_noise_/'):
             if item.split('.')[-1] == self.file_type:
-                waveform = read_audio_file(item, self.params.sample_rate)
+                waveform = read_audio_file(wav_dir + '_background_noise_/' + item, self.params.sample_rate)
                 self.backgroud_data.append(waveform)
 
+                
     def __wave2mixup(self, waveform1, waveform2, mix_lambda = None):
         if waveform1.shape[1] != waveform2.shape[1]: 
             if waveform1.shape[1] > waveform2.shape[1]:
                 # padding
                 temp_wav = torch.zeros(1, waveform1.shape[1])
+                temp_wav = np.pad(waveform, (0, sample_rate - len(waveform)), 'constant', constant_values = 0)
                 temp_wav[0, 0:waveform2.shape[1]] = waveform2
                 waveform2 = temp_wav
             else:
@@ -232,30 +273,32 @@ class MineDataSet():
         for cls in os.listdir(wav_dir):
             if os.path.exists(npy_dir + cls) == False:
                 os.makedirs(npy_dir + cls)
-    	    for smp in os.listdir(wav_dir + cls):
+            for smp in os.listdir(wav_dir + cls):
                 datum = read_audio_file(wav_dir + cls + '/' + smp)    
-
-                if random.random(0, 1) < self.backgroud_noise
-                    mix_sample_idx = random.randint(0, len(self.backgroud_data) - 1)
-                    waveform, _ = self._wave2mixup(self.backgroud_data[mix_sample_idx], datum, mix_lambda = 0.2)
-
-                if random.random(0, 1) < self.mixup:
-                    mix_sample_idx = random.randint(0, len(files_train) - 1)
-                    mix_datum = read_audio_file(files_train[mix_sample_idx])    
-                    waveform, mix_lambda = self._wave2mixup(mix_datum, datum)
+                
+                #if random.random() < self.backgroud_noise:
+                #    mix_sample_idx = random.randint(0, len(self.backgroud_data) - 1)
+                #   datum, _ = self.__wave2mixup(self.backgroud_data[mix_sample_idx], datum, mix_lambda = 0.2)                    
+                #if random.random() < self.mixup:
+                #    mix_sample_idx = random.randint(0, len(files_train) - 1)
+                #   mix_datum = read_audio_file(files_train[mix_sample_idx])    
+                #    datum, mix_lambda = self.__wave2mixup(mix_datum, datum)
+                print(f"wav_file {smp}")
                 
                 spectrogram, patches = features_lib. \
-                      waveform_to_log_mel_spectrogram_patches(tf.squeeze(waveform, axis=0), 
-                                                       params)
+                      waveform_to_log_mel_spectrogram_patches(tf.squeeze(datum, axis=0), 
+                                                       self.params)
+                
                 np.save(npy_dir + cls+'/'+ smp+'.npy', patches)
 
     def build_dataset(self):
         self.__build_cache(self.path + 'train_wav/', self.path + 'train_npy/')
 
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='mine', help='audio dataset name default mine')
+    parser.add_argument('--dataset', type=str, default='urban_sound', help='audio dataset name default mine')
     parser.add_argument('--path', type=str, default='', help='audio dataset name default mine')
     parser.add_argument('--cache_dir', type=str, default=None, help='audio dataset name default mine')
     parser.add_argument('--file_type', type=str, default='wav', help='audio dataset name default mine')
@@ -278,11 +321,14 @@ if __name__ == '__main__':
     dataset = None
 
     if opt.dataset == 'mine':
-        dataset = MineDataSet(param, opt.path, opt.cache_dir, opt.file_type, opt.train_split, opt.wanted_label)
+        dataset = MineDataSet(param, opt.path, opt.cache_dir, opt.file_type, opt.wanted_label, mixup = 0.2, backgroud_noise = 0.2)
     elif opt.dataset == 'audioset':
         dataset = AudioSetDataSet(param, opt.path, opt.cache_dir)
     elif opt.dataset == 'esc-50':
         dataset = ESC50DataSet(param, opt.path, opt.cache_dir)
+        print('esc-50 ')
+    elif opt.dataset == 'urban_sound':
+        dataset = UrbanDataSet(param, opt.path, opt.cache_dir)
         print('esc-50 ')
     else:
         print('')

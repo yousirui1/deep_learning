@@ -77,7 +77,7 @@ class DataGenerator(Sequence):
                 patches = np.load(ID)
                 x.append(patches)
 
-            #print(tf.cast(y, dtype=tf.int32))
+            #print(tf.cast(x[0], dtype=tf.float32))
             return tf.cast(x[0], dtype=tf.float32), tf.cast(y, dtype=tf.int32)
 
         else:
