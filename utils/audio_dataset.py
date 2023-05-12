@@ -48,11 +48,7 @@ def read_audio_file(audio_file, file_type = 'wav', sample_rate = 16000):
     waveform = wav_data / 32768.0
 
     if len(waveform.shape) > 1:
-<<<<<<< HEAD
         waveform = np.mean(waveform, axis=1)  # 多通道取均值，变单通道
-=======
-        waveform = np.mean(waveform, axis=1)  # 多通道转单通道
->>>>>>> 3ce25689a18cb748fb13a406b43933c8afd3f064
 
     if sr != sample_rate:
         waveform = resampy.resample(waveform, sr, sample_rate)

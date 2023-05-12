@@ -204,13 +204,8 @@ if __name__ == '__main__':
     parser.add_argument('--weights', type=str, default='', help='initial weights path')
     parser.add_argument('--epochs', type=int, default=5, help='epochs defulat: 5')
     parser.add_argument('--batch_size', type=int, default=1, help='batch_size default: 1')
-<<<<<<< HEAD
-    parser.add_argument('--model_name', type=str, default='mobilenet_v3_tf', help='use model name')
-    parser.add_argument('--dataset_name', type=str, default='mine', help='use dataset name')
-=======
     parser.add_argument('--model_name', type=str, default='efficientnet', help='use model name')
-    parser.add_argument('--dataset_name', type=str, default='audioset', help='use dataset name')  # urban_sound audioset esc-50
->>>>>>> 3ce25689a18cb748fb13a406b43933c8afd3f064
+    parser.add_argument('--dataset_name', type=str, default='audioset', help='use dataset name urban_sound audioset esc-50')
     parser.add_argument('--path', type=str, default='', help='dataset path')
     parser.add_argument('--model_out', type=str, default='saved_models/', help='dataset path')
     parser.add_argument('--single-cls', action='store_false', help='train multi-class data as single-class')
@@ -224,31 +219,18 @@ if __name__ == '__main__':
 
     opt.pre_train = True
     opt.label_json = None
-<<<<<<< HEAD
     opt.wanted_label = 'Alarm,ChainSaw,Cough,Cry,Explosion,GlassBreak,' \
                         'Knock,Scream,Siren119,Voice,' \
                         #'Applause,BellRinging,CarHorn,CashCounter,' \
                         #'ChurchBell,Jackhammer,Laughter,Music,Siren120'
-=======
 
     opt.wanted_label = None
->>>>>>> 3ce25689a18cb748fb13a406b43933c8afd3f064
 
     opt.path = '/home/ysr/dataset/audio/' + opt.dataset_name + '/'
 
     if opt.dataset_name == 'mine':
         opt.pre_train = False
-<<<<<<< HEAD
-        #opt.path = '/home/ysr/dataset/audio/' + opt.dataset_name + '/'
-=======
-        opt.wanted_label = 'Alarm,ChainSaw,Cough,Cry,Explosion,GlassBreak,' \
-                        'Knock,Scream,Siren119,Voice,' \
-                        'Applause,BellRinging,CarHorn,CashCounter,' \
-                        'ChurchBell,Jackhammer,Laughter,Music,Siren120'
- 
->>>>>>> 3ce25689a18cb748fb13a406b43933c8afd3f064
         #opt.label_json = opt.path + opt.dataset_name + '/' + 'classes.json'
-        #opt.path = '/home/ysr/project/ai/yamnet-transfer-learning/'
     
     train_generator, valid_generator, labels, n_classes = build_dataset(opt)
     opt.n_classes = n_classes
