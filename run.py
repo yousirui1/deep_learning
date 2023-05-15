@@ -36,13 +36,15 @@ if __name__ == '__main__':
     if opt.framework == 'torch':
         print('use torch')
         from train_torch import train, build_dataset
-        opt.dataset_path = '/home/ysr/project/dataset/image/'
-        train_generator, valid_generator, n_classes = build_dataset(opt)
-        train(opt, None, (3, 32, 32), train_generator, valid_generator)
     elif opt.framework == 'tensorflow':
         print('use tensorflow ')
+        from train_tf import train, build_dataset
+    else:
+        print("none")
 
-
+    opt.dataset_path = '/home/ysr/project/dataset/image/'
+    train_generator, valid_generator, n_classes = build_dataset(opt)
+    train(opt, None, (3, 32, 32), train_generator, valid_generator)
 
     #if opt.path ==
     #opt.path = '/home/ysr/dataset/audio/' + opt.dataset_name + '/'
