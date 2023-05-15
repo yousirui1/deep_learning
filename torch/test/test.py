@@ -8,8 +8,8 @@ import numpy as np
 import time
 
 transform = transforms.Compose(
-        [transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    [transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 
 class LeNet(nn.Module):
@@ -24,26 +24,29 @@ class LeNet(nn.Module):
         self.fc3 = nn.Linear(84, 10)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))   # input(3, 32, 32) output(16, 28, 28)
-        x = self.pool1(x)           #
+        x = F.relu(self.conv1(x))
+        x = self.pool1(x)
         x = F.relu(self.conv2(x))
         x = self.pool2(x)
-        x = x.view(-1, 32 * 5 * 5)  # output(32, 5, 5)
+        x = x.view(-1, 32 * 5 * 5)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
 
-# 导入50000 张训练图片
-train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=False, transform=transform) #预处理
+train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=False, transform=transform)
 train_loader = torch.utils.data.DataLoader(train_set, shuffle=False, num_workers=12)
 
 test_set = torchvision.datasets.CIFAR10(root='./data', download=False, transform=transform)
 test_loader = torch.utils.data.DataLoader(test_set, batch_size=10000, shuffle=False, num_workers=12)
 
-# 获取测试函数中的标签和图像, 用于accuracy计算
-test_data_iter = iter(test_loader)
-test_image, test_label = test_data_iter.next()
+#test_data_iter = iter(test_loader)
+#test_image, test_label = test_data_iter.next()
+
+for test_images, test_labels in test_loader:
+    test_image = test_images
+    test_label = test_labels
+    break
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -62,20 +65,17 @@ for epoch in range(1):
         inputs, labels = data 
         optimizer.zero_grad()
 
-        # forward + backward + optimize
-        outputs = net(inputs.to(device))                   # 正向传播
-        loss = loss_function(outputs, labels.to(device))   # 损失计算
-        loss.backward()                         # 反向传播
+        outputs = net(inputs.to(device))
+        loss = loss_function(outputs, labels.to(device))
+        loss.backward()
         optimizer.step()
 
-        #print("step, ",step)
-        # 打印耗时、损失、准确率等
         running_loss += loss.item()
         if step % 100 == 99:
-            with torch.no_grad():       # 不计算每个节点的损失梯度, 防止内存占用
+            with torch.no_grad():
                 outputs = net(test_image.to(device))
                 
-                predict_y = torch.max(outputs, dim=1)[1] # 以output中最大位置对应的索引(标签)作为预测输出
+                predict_y = torch.max(outputs, dim=1)[1]
                 accuracy = (predict_y == test_label.to(device)).sum().item() / test_label.size(0)
 
                 print('[%d, %5d] train_loss: %.3f test_accuracy: %.3f' %
@@ -87,6 +87,9 @@ print('end train model')
 
 save_path = 'lenet.pth'
 torch.save(net.state_dict(), save_path)
+
+#torch.onnx.export(net, test_image.to(device), 'lenet
+
 
 torch.onnx.export(net, test_image.to(device), 'lenet.onnx', 
                     input_names=['inputs'], output_names=['outputs'])
