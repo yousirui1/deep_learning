@@ -1,0 +1,90 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+from torchinfo import summary
+
+class MADE(nn.Module):
+    def __init__(self, input_size, hidden_sizes, output_size):
+        super(MADE, self).__init__()
+        self.input_size = input_size
+        self.hidden_sizes = hidden_sizes
+        self.output_size = output_size
+        self.masks = self.create_masks()
+        
+        self.fc_layers = nn.ModuleList()
+        for i in range(len(hidden_sizes)):
+            fc_layer = nn.Linear(self.masks[i].sum(), hidden_sizes[i])
+            self.fc_layers.append(fc_layer)
+        
+        self.output_layer = nn.Linear(self.masks[-1].sum(), output_size)
+
+    def create_masks(self):
+        masks = []
+        input_mask = torch.arange(self.input_size)
+        masks.append(input_mask)
+        for hidden_size in self.hidden_sizes:
+            hidden_mask = torch.randint(low=0, high=self.input_size, size=(hidden_size,))
+            masks.append(hidden_mask)
+        output_mask = input_mask
+        masks.append(output_mask)
+        return masks
+
+    def forward(self, x):
+        h = x
+        for i, fc_layer in enumerate(self.fc_layers):
+            h = h[:, self.masks[i]]
+            h = fc_layer(h)
+            h = F.relu(h)
+        
+        output = h[:, self.masks[-1]]
+        output = self.output_layer(output)
+        return output
+
+class GroupMADE(nn.Module):
+    def __init__(self, input_size, hidden_sizes, output_size, num_frames):
+        super(GroupMADE, self).__init__()
+        self.input_size = input_size
+        self.hidden_sizes = hidden_sizes
+        self.output_size = output_size
+        self.num_frames = num_frames
+        self.made = MADE(input_size * num_frames, hidden_sizes, output_size * num_frames * 3)
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        x = x.view(batch_size, -1)
+        x = x.unsqueeze(1).expand(-1, self.num_frames, -1)
+        x = x.contiguous().view(batch_size * self.num_frames, -1)
+        output = self.made(x)
+        output = output.view(batch_size, self.num_frames, -1)
+        return output
+
+# Example usage
+
+
+
+class EnsembleModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_masks, num_components):
+        super(EnsembleModel, self).__init__()
+        self.groupmade = GroupMADE(input_dim, hidden_dim, output_dim, num_masks, num_components)
+        self.mobilenet = MobileNetV2(output_dim)
+
+    def forward(self, x):
+        #output, _, _ = self.groupmade(x)
+        output = self.mobilenet(x)
+        return output
+
+
+if __name__ ==  '__main__':
+    input_size = 128 * 5  # 5 frames with 128 Mel bins each
+    hidden_sizes = [128, 128, 128, 128, 32, 128, 128, 128, 128]
+    output_size = 128 * 5 * 3  # 5 frames with 128 Mel bins and 3 components for each Gaussian mixture
+    num_frames = 5
+    model = GroupMADE(input_size, hidden_sizes, output_size, num_frames)
+    test_input = torch.rand([10, 5, 128])
+    summary(model, input_size=(1, 5, 128))
+
+    onnx_path = "efficient.onnx"
+    torch.onnx.export(model, test_input, onnx_path)
+
+

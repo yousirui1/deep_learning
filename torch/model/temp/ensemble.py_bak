@@ -1,0 +1,266 @@
+import torch
+import torch.nn as nn
+from torchvision.models import mobilenet_v2, resnet50
+import torch.optim as optim
+
+# Define MobileNetV2
+class MobileNetV2(nn.Module):
+    def __init__(self, num_classes):
+        super(MobileNetV2, self).__init__()
+        self.model = mobilenet_v2(pretrained=True)
+        #self.model.classifier = nn.Linear(1280, num_classes)  # Set the number of output classes
+
+    def forward(self, x):
+        return self.model(x)
+
+# Define ResNet-50
+class ResNet50(nn.Module):
+    def __init__(self):
+        super(ResNet50, self).__init__()
+        self.model = resnet50(pretrained=True)
+        self.model.fc = nn.Linear(2048, num_classes)  # Set the number of output classes
+
+    def forward(self, x):
+        return self.model(x)
+
+
+# GroupMADE model
+#class GroupMADE(nn.Module):
+#    def __init__(self, input_dim, hidden_dim, output_dim, num_masks, num_components):
+#        super(GroupMADE, self).__init__()
+#        self.input_dim = input_dim
+#        self.hidden_dim = hidden_dim
+#        self.output_dim = output_dim
+#        self.num_masks = num_masks
+#        self.num_components = num_components
+        
+#        self.layers = nn.ModuleList()
+#        self.masks = nn.ParameterList()
+        
+#        for _ in range(num_masks):
+#            layer = nn.Linear(input_dim, hidden_dim)
+#            mask = nn.Parameter(torch.ones(hidden_dim, input_dim))
+#            self.layers.append(layer)
+#            self.masks.append(mask)
+        
+#        self.output_layer = nn.Linear(hidden_dim, output_dim)
+#        self.component_layer = nn.Linear(hidden_dim, num_components)
+
+#    def forward(self, x):
+#        batch_size = x.size(0)
+#        mask_idx = torch.randint(0, self.num_masks, (batch_size,))
+        
+#        h = x
+#        for i in range(self.num_masks):
+#            print(i)
+#            masked_layer = self.layers[i](h) * self.masks[i]
+#            h = torch.relu(masked_layer)
+        
+#        output = self.output_layer(h)
+#        components = self.component_layer(h)
+        
+#        return output, components, mask_idx
+
+class GroupMADE(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_masks, num_components):
+        super(GroupMADE, self).__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
+        self.num_masks = num_masks
+        self.num_components = num_components
+
+        self.layers = nn.ModuleList()
+        self.masks = nn.ParameterList()
+
+        for _ in range(num_masks):
+            layer = nn.Linear(input_dim, hidden_dim)
+            mask = nn.Parameter(torch.ones(hidden_dim, hidden_dim))
+            self.layers.append(layer)
+            self.masks.append(mask)
+
+        self.output_layer = nn.Linear(hidden_dim, output_dim)
+        self.component_layer = nn.Linear(hidden_dim, num_components)
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        mask_idx = torch.randint(0, self.num_masks, (batch_size,))
+
+        h = x
+        for i in range(self.num_masks):
+            masked_layer = self.layers[i](h) * self.masks[i]
+            h = torch.relu(masked_layer)
+
+        output = self.output_layer(h)
+        components = self.component_layer(h)
+
+        return output, components, mask_idx
+
+
+
+class GroupMADE1(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_masks, num_components):
+        super(GroupMADE, self).__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
+        self.num_masks = num_masks
+        self.num_components = num_components
+
+        self.layers = nn.ModuleList()
+        self.masks = nn.ParameterList()
+
+        for _ in range(num_masks):
+            layer = nn.Linear(input_dim, hidden_dim)
+            mask = nn.Parameter(torch.ones(hidden_dim, input_dim))
+            self.layers.append(layer)
+            self.masks.append(mask)
+
+        self.output_layer = nn.Linear(hidden_dim, output_dim)
+        self.component_layer = nn.Linear(hidden_dim, num_components)
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        mask_idx = torch.randint(0, self.num_masks, (batch_size,))
+
+        h = x
+        for i in range(self.num_masks):
+            masked_layer = self.layers[i](h) * self.masks[i][:, :self.input_dim]
+            h = torch.relu(masked_layer)
+
+        output = self.output_layer(h)
+        components = self.component_layer(h)
+
+        return output, components, mask_idx
+
+# Define EnsembleModel
+#class EnsembleModel(nn.Module):
+#    def __init__(self, input_dim, hidden_dim, output_dim, num_masks, num_components):
+#        super(EnsembleModel, self).__init__()
+#        self.groupmade = GroupMADE1(input_dim, hidden_dim, output_dim, num_masks, num_components)
+#        self.mobilenet = MobileNetV2(output_dim)
+    
+#    def forward(self, x):
+#        output, _, _ = self.groupmade(x)
+#        output = self.mobilenet(output)
+#        return output
+
+class EnsembleModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_masks, num_components):
+        super(EnsembleModel, self).__init__()
+        self.groupmade = GroupMADE(input_dim, hidden_dim, output_dim, num_masks, num_components)
+        self.mobilenet = MobileNetV2(output_dim)
+
+    def forward(self, x):
+        output, _, _ = self.groupmade(x)
+        output = self.mobilenet(output)
+        return output
+
+# Training code
+def train(train_data, num_epochs, batch_size, learning_rate):
+    input_dim = train_data.shape[1]
+    hidden_dim = 64
+    output_dim = 64
+    num_masks = 8
+    num_components = 4
+    
+    model = EnsembleModel(input_dim, hidden_dim, output_dim, num_masks, num_components)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    criterion = nn.MSELoss()
+    
+    num_batches = len(train_data) // batch_size
+    
+    for epoch in range(num_epochs):
+        total_loss = 0.0
+        
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = (batch_idx + 1) * batch_size
+            batch_data = train_data[start_idx:end_idx]
+            
+            optimizer.zero_grad()
+            
+            output = model(batch_data)
+            
+            loss = criterion(output, batch_data)
+            loss.backward()
+            
+            optimizer.step()
+            
+            total_loss += loss.item()
+        
+        avg_loss = total_loss / num_batches
+        print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss:.4f}")
+    
+    return model
+
+input_dim = 100
+num_samples = 1000
+train_data = torch.randn(num_samples, input_dim)
+
+# Set hyperparameters
+num_epochs = 10
+batch_size = 32
+learning_rate = 0.001
+
+# Train the model
+model = train(train_data, num_epochs, batch_size, learning_rate)
+
+# Define Group-MADE network
+#class GroupMADE(nn.Module):
+#    def __init__(self, input_size, hidden_sizes, num_components):
+#        super(GroupMADE, self).__init__()
+#        self.input_size = input_size
+#        self.hidden_sizes = hidden_sizes
+#        self.num_components = num_components
+#
+#        self.layers = nn.ModuleList()
+#        self.masks = nn.ModuleList()
+#
+#        self.layers.append(nn.Linear(input_size, hidden_sizes[0]))
+#        self.masks.append(nn.Parameter(torch.ones(input_size, hidden_sizes[0])))
+#
+#        for i in range(1, len(hidden_sizes)):
+#            self.layers.append(nn.Linear(hidden_sizes[i - 1], hidden_sizes[i]))
+#            self.masks.append(nn.Parameter(torch.ones(hidden_sizes[i - 1], hidden_sizes[i])))
+#
+#        self.output_layer = nn.Linear(hidden_sizes[-1], input_size * num_components * 3)
+#
+#    def forward(self, x):
+#        batch_size = x.size(0)
+#        num_frames = x.size(1)
+#        x = x.view(batch_size * num_frames, -1)
+#
+#        hidden = F.relu(self.layers[0](x) * self.masks[0])
+#        for i in range(1, len(self.layers)):
+#            hidden = F.relu(self.layers[i](hidden) * self.masks[i])
+#
+#        output = self.output_layer(hidden)
+#        output = output.view(batch_size, num_frames, -1)
+#        return output
+#
+## Create the ensemble model
+#class EnsembleModel(nn.Module):
+#    def __init__(self):
+#        super(EnsembleModel, self).__init__()
+#        self.mobilenet = MobileNetV2()
+#        #self.resnet = ResNet50()
+#        self.groupmade = GroupMADE()
+#
+#    def forward(self, x):
+#        mobilenet_output = self.mobilenet(x)
+#        #resnet_output = self.resnet(x)
+#        groupmade_output = self.groupmade(x)
+#
+#        # Combine the outputs of the three models using mean or max ensembling
+#        #ensemble_output = torch.mean(torch.stack([mobilenet_output, resnet_output, groupmade_output]), dim=0)
+#        ensemble_output = torch.mean(torch.stack([mobilenet_output, groupmade_output]), dim=0)
+#        return ensemble_output
+#
+## Instantiate the ensemble model
+#model = EnsembleModel()
+#
+## Define loss function and optimizer
+#criterion = nn.CrossEntropyLoss()
+#optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
