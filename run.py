@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--wanted_label', type=str, default='', help='class label list')
     parser.add_argument('--single-cls', action='store_false', help='train multi-class data as single-class')
-    parser.add_argument('--num_epochs', type=int, default=5, help='epochs defulat: 5')
+    parser.add_argument('--num_epochs', type=int, default=50, help='epochs defulat: 5')
     parser.add_argument('--batch_size', type=int, default=1, help='batch_size default: 1')
     parser.add_argument('--loss', type=str, default='MSE', help='loss function')
     parser.add_argument('--learning_rate', type=float, default=0.01, help='learning rate')
@@ -45,6 +45,8 @@ if __name__ == '__main__':
         from train_tf import train, build_dataset
     else:
         print("none")
+
+    opt.export_onnx = True
 
     opt.dataset_path = '/home/ysr/project/dataset/audio/dcase2020_task2/train/fan/'
     train_generator = build_dataset(opt)

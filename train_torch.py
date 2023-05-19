@@ -24,12 +24,13 @@ def build_dataset(opt, dir_name = 'train', ext = 'wav'):
     
     train_set = torch.empty(len(file_list), 998, 128)
     i = 0
+    print("len(file_list)", len(file_list))
     for file_path in file_list:
         fbank, _ = wav2fbank(998, 128, file_path)
         train_set[i] = fbank
         i += 1
 
-    train_loader = torch.utils.data.DataLoader(torch.tensor(train_set), batch_size = 1, shuffle=False, num_workers=12)
+    train_loader = torch.utils.data.DataLoader(torch.tensor(train_set), batch_size = 32, shuffle=False, num_workers=12)
     return train_loader
 
 
@@ -74,7 +75,7 @@ def train(opt, model, train_loader):
             optimizer.step()
 
             running_loss += loss.item()
-            if step % 10 == 9:
+            if step % 100 == 99:
                 with torch.no_grad():
                     #for step, data  in enumerate(train_loader, start = 0):
                     #outputs = model(test_image.to(device))
