@@ -6,10 +6,10 @@ import torchvision
 from torchinfo import summary
 
 class EffNetAttention(nn.Module):
-    def __init__(self, input_dim, label_dim = 527, b = 0, pretrain = True, head_num = 4):
+    def __init__(self, input_shape, label_dim = 527, b = 0, pretrain = True, head_num = 4, activation = 'sigmoid'):
         super(EffNetAttention,self).__init__()
         self.middim = [1280, 1280, 1408, 1536, 1792, 2048, 2304, 2560]
-        self.input_dim = input_dim
+        self.input_shape = input_shape
         if pretrain == False:
             self.effnet = EfficientNet.from_name('efficientnet-b'+str(b), in_channels=1)
         else:
@@ -31,8 +31,8 @@ class EffNetAttention(nn.Module):
             self.attention = MeanPooling(
                     self.middim[b],
                     label_dim,
-                    att_activation = 'sigmoid',
-                    cla_activation = 'sigmoid')
+                    att_activation = activation,
+                    cla_activation = activation)
         else:
             raise ValueError('Attention head must be integer >= 0, 0=mean pooling, 1=single-head attention, >1=multi-head attention.');
 
@@ -41,7 +41,7 @@ class EffNetAttention(nn.Module):
 
     def forward(self, x):
         #x = x.unsqueeze(1)
-        x = x.view(self.input_dim[0], 1, self.input_dim[1], self.input_dim[2])
+        x = x.view(self.input_shape[0], 1, self.input_shape[1], self.input_shape[2])
         x = x.transpose(2, 3)
 
         x = self.effnet.extract_features(x)

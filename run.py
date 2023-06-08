@@ -39,7 +39,10 @@ if __name__ == '__main__':
         print('use torch')
         from train_torch import train, build_dataset
         sys.path.append('./torch/model')
-        from ensemble import EnsembleModel
+        #from ensemble import EnsembleModel
+        import torch
+        from efficient import EffNetAttention
+        from torchinfo import summary
     elif opt.framework == 'tensorflow':
         print('use tensorflow ')
         from train_tf import train, build_dataset
@@ -52,8 +55,31 @@ if __name__ == '__main__':
     train_generator = build_dataset(opt)
     input_shape = (998, 128)
     hidden_dims = [128, 128, 64, 64, 32]
-    model = EnsembleModel(input_shape, hidden_dims)
-    train(opt, model, train_generator)
+    model = EffNetAttention(input_shape = (1, 998, 128),label_dim=200, b=2, pretrain=False, head_num=0)
+    #model = EnsembleModel(input_shape, hidden_dims)
+
+    model.load_state_dict(torch.load("weights/EffNetMean.pth"))
+    summary(model, input_size=(1, 998, 128))
+
+    new_state_dict = {}
+    for name,param in model.state_dict.items():
+        if not name.startswith('attention'):
+            new_state_dict[name] = param
+
+    new_model = EffNetAttention(input_shape = (1, 998, 128),label_dim = 16, b=2, pretrain=False, head_num=0, activation = 'softmax')
+
+    for name,param in new_model.state_dict().items():
+        if name.startswith('attention'):
+            new_state_dict[name] = param
+
+    new_model.load_state_dict(new_state_dict)
+
+    for name, param in new_model.named_parameters():
+        if not name.startswith('attention'):
+            param.requires_grad = False
+
+
+    train(opt, new_model, train_generator)
 
     #if opt.path ==
     #opt.path = '/home/ysr/dataset/audio/' + opt.dataset_name + '/'

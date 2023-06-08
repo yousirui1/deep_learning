@@ -94,7 +94,18 @@ class MeanPooling(nn.Module):
         init_layer(self.cla)
 
     def activate(self, x, activation):
-        return torch.sigmoid(x)
+        if activation == 'linear':
+            return x
+
+        elif activation == 'relu':
+            return F.relu(x)
+
+        elif activation == 'sigmoid':
+            return torch.sigmoid(x)
+
+        elif activation == 'softmax':
+            return F.softmax(x, dim=1)
+
 
     def forward(self, x):
 

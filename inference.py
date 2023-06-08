@@ -96,6 +96,40 @@ def detect(source='0'):
         #source = check_file(source)
         
     ffmpeg_audio(source)
+
+def onnx_inference(wav_file):
+    import onnx
+    import onnxruntime
+    import numpy as np
+    onnx_model_path = 'efficinet.onnx'
+    onnx_model = onnx.load(onnx_model_path)
+
+    onnxruntime_session = onnxruntime.InferenceSession(onnx_model.SerializeToString())
+
+    # 随机生成输入数据
+    #input_shape = (1, 3000, 128)
+    #input_data = np.random.rand(*input_shape).astype(np.float32)
+
+    
+    input_data = _wav2fbank(wav_file)    
+
+    input_data = input_data.view(1, 998, 126).numpy()
+
+    # 进行推理
+    outputs = onnxruntime_session.run(None, {'inputs': input_data})
+
+    # 处理输出结果
+    output_results = outputs[0][0]  # 获取输出结果，假设结果形状为(1, 200)
+     # 排序并输出前5个类别
+    sorted_indices = np.argsort(output_results)[::-1]  # 按值排序并取逆序
+    top5_indices = sorted_indices[:5]  # 取前5个类别的索引 
+
+    print("Top 5 classes:")
+    for index in top5_indices:
+        print("Class:", index, "Probability:", output_results[index])
+
+    return output_results
+
     # Run Detect
     #for 
 
@@ -107,3 +141,4 @@ if __name__ == '__main__':
     print(opt)
 
     detect(**vars(opt)) #**vars(opt) 返回对象object的属性和属性值的字典对象
+
