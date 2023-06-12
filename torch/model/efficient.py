@@ -19,14 +19,14 @@ class EffNetAttention(nn.Module):
             self.attention = MHeadAttention(
                     self.middim[b],
                     label_dim,
-                    att_activation = 'sigmoid',
-                    cla_activation = 'sigmoid')
+                    att_activation = activation,
+                    cla_activation = activation)
         elif head_num == 1:
              self.attention = Attention(
                     self.middim[b],
                     label_dim,
-                    att_activation = 'sigmoid',
-                    cla_activation = 'sigmoid')
+                    att_activation = activation,
+                    cla_activation = activation)
         elif head_num == 0:
             self.attention = MeanPooling(
                     self.middim[b],
@@ -37,17 +37,30 @@ class EffNetAttention(nn.Module):
             raise ValueError('Attention head must be integer >= 0, 0=mean pooling, 1=single-head attention, >1=multi-head attention.');
 
         self.avgpool = nn.AvgPool2d((4, 1))
-        self.effnet._fc = nn.Identity()
+        self.activation = activation
+        num_ftrs = self.effnet._fc.in_features
+        self.effnet._fc = torch.nn.Linear(num_ftrs, label_dim)
+        #self.effnet._swish = torch.nn.Softmax(dim=1)
+
+
+        # to do
+        #self.effnet._fc = nn.Identity()
 
     def forward(self, x):
         #x = x.unsqueeze(1)
         x = x.view(self.input_shape[0], 1, self.input_shape[1], self.input_shape[2])
         x = x.transpose(2, 3)
 
-        x = self.effnet.extract_features(x)
-        x = self.avgpool(x)
-        x = x.transpose(2, 3)
-        out, norm_att = self.attention(x)
+        if self.activation == 'softmax':
+            #x = self.effnet(x)
+            out = torch.nn.functional.softmax(self.effnet(x), dim=1)
+        elif self.activation == 'sigmoid':
+            out = torch.sigmoid(self.effnet(x))
+        else:
+            x = self.effnet.extract_features(x)
+            x = self.avgpool(x)
+            x = x.transpose(2, 3)
+            out, norm_att = self.attention(x)
         return out
 
 
